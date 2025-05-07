@@ -1,35 +1,64 @@
 package com.project.code.Controller;
 
+import com.project.code.Model.Store;
+import com.project.code.Model.DTO.PlaceOrderRequestDTO;
+import com.project.code.Repository.StoreRepository;
+import com.project.code.Service.OrderService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+import java.util.HashMap;
+
+@RestController
+@RequestMapping("/store")
 public class StoreController {
-// 1. Set Up the Controller Class:
-//    - Annotate the class with `@RestController` to designate it as a REST controller for handling HTTP requests.
-//    - Map the class to the `/store` URL using `@RequestMapping("/store")`.
 
+    @Autowired
+    private StoreRepository storeRepository;
 
- // 2. Autowired Dependencies:
-//    - Inject the following dependencies via `@Autowired`:
-//        - `StoreRepository` for managing store data.
-//        - `OrderService` for handling order-related functionality.
+    @Autowired
+    private OrderService orderService;
 
+    // 1. Add Store
+    @PostMapping
+    public ResponseEntity<Map<String, String>> addStore(@RequestBody Store store) {
+        Map<String, String> response = new HashMap<>();
+        try {
+            Store savedStore = storeRepository.save(store);
+            response.put("message", "Store created successfully with ID: " + savedStore.getId());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", "Failed to create store: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 
- // 3. Define the `addStore` Method:
-//    - Annotate with `@PostMapping` to create an endpoint for adding a new store.
-//    - Accept `Store` object in the request body.
-//    - Return a success message in a `Map<String, String>` with the key `message` containing store creation confirmation.
+    // 2. Validate Store
+    @GetMapping("/validate/{storeId}")
+    public boolean validateStore(@PathVariable Long storeId) {
+        return storeRepository.existsById(storeId);
+    }
 
+    // 3. Place Order
+    @PostMapping("/placeOrder")
+    public ResponseEntity<Map<String, String>> placeOrder(@RequestBody PlaceOrderRequestDTO orderRequest) {
+        Map<String, String> response = new HashMap<>();
+        try {
+            // Validate store exists
+            if (!storeRepository.existsById(orderRequest.getStoreId())) {
+                response.put("Error", "Store not found");
+                return ResponseEntity.badRequest().body(response);
+            }
 
- // 4. Define the `validateStore` Method:
-//    - Annotate with `@GetMapping("validate/{storeId}")` to check if a store exists by its `storeId`.
-//    - Return a **boolean** indicating if the store exists.
-
-
- // 5. Define the `placeOrder` Method:
-//    - Annotate with `@PostMapping("/placeOrder")` to handle order placement.
-//    - Accept `PlaceOrderRequestDTO` in the request body.
-//    - Return a success message with key `message` if the order is successfully placed.
-//    - Return an error message with key `Error` if there is an issue processing the order.
-
-
-   
+            // Process order through service
+            String result = orderService.processOrder(orderRequest);
+            response.put("message", result);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("Error", "Failed to place order: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
 }
